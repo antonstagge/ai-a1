@@ -41,21 +41,10 @@ public class Main {
         io.close();
     }
 
-    public static void HMM1() {
-        Kattio io = new Kattio(System.in, System.out);
-
-        Matrix A = readMatix(io);
-        Matrix B = readMatix(io);
-        Matrix pi = readMatix(io);
-        int[] sequence = readRow(io);
+    public static Matrix AlphaPass(Matrix A, Matrix B, Matrix pi, int[] sequence) {
 
         // alpha_1
-        double[] alpha_temp = new double[A.rows];
-        for (int i = 0; i < A.rows; i++) {
-            alpha_temp[i] = B.get(i, sequence[0])*pi.get(0,i);
-        }
-
-        Matrix alpha = new Matrix(alpha_temp.length,1, alpha_temp);
+        Matrix alpha = B.getCol(sequence[0]).hadamardProd(pi.transpose());
 
         // alpha_t
         int T = sequence.length;
@@ -65,6 +54,19 @@ public class Main {
             Matrix tmp2 = tmp1.hadamardProd(bcol);
             alpha = tmp2;
         }
+
+        return alpha;
+    }
+
+    public static void HMM1() {
+        Kattio io = new Kattio(System.in, System.out);
+
+        Matrix A = readMatix(io);
+        Matrix B = readMatix(io);
+        Matrix pi = readMatix(io);
+        int[] sequence = readRow(io);
+
+        Matrix alpha = AlphaPass(A, B, pi, sequence);
 
         // last step
         double sum = 0.0;
@@ -99,24 +101,14 @@ public class Main {
         // delta_t
         for (int t = 1; t < T; t++) {
             Matrix big = new Matrix(N,0);
-            //System.out.println(delta);
-            //System.out.println("New round inner");
             for (int j = 0; j < N; j++) {
                 Matrix Bcol = B.getCol(sequence[t]);
-                //System.out.println("Bcol");
-                //System.out.println(Bcol);
                 Matrix Arowtrans = A.getRow(j).transpose();
-                //System.out.println("Arowtrans");
-                //System.out.println(Arowtrans);
-                //System.out.println("deltaJ");
-                //System.out.println(delta.get(j,0));
                 Matrix tmp = Bcol.hadamardProd(Arowtrans);
                 Matrix tmp2 = tmp.scalarMult(delta.get(j,0));
                 big = big.appendCol(tmp2);
             }
-            //System.out.println(big);
             Matrix max_result = big.extractMax();
-            //System.out.println(max_result.getCol(1));
             delta = max_result.getCol(0);
             delta_idx = delta_idx.appendCol(max_result.getCol(1));
         }
@@ -146,7 +138,7 @@ public class Main {
 
     public static void main(String[] args) {
         //HMM0();
-        //HMM1();
-        HMM2();
+        HMM1();
+        //HMM2();
     }
 }
