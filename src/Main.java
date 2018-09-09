@@ -2,7 +2,7 @@ import java.util.Arrays;
 
 public class Main {
 
-    public static Matrix normlizer;
+    public static double[] normlizer;
 
     public static Matrix readMatix(Kattio io) {
         int a_rows = io.getInt();
@@ -29,7 +29,7 @@ public class Main {
 
         int T = sequence.length;
         int N = A.rows;
-        normlizer = new Matrix(1, T);
+        normlizer = new double[T];
         Matrix alpha = new Matrix(N, 0);
 
         // alpha_1
@@ -38,8 +38,8 @@ public class Main {
         for (int i = 0; i < N; i++) {
             new_scale += current_alpha.get(i, 0);
         }
-        normlizer.set(0, 0, new_scale);
-        current_alpha = current_alpha.scalarMult(1/new_scale);
+        normlizer[0] = new_scale;
+        current_alpha = current_alpha.scalarMult(1.0/new_scale);
 
         alpha = alpha.appendCol(current_alpha);
 
@@ -55,13 +55,49 @@ public class Main {
             for (int i = 0; i < N; i++) {
                 new_scale += current_alpha.get(i, 0);
             }
-            normlizer.set(0, t, new_scale);
-            current_alpha = current_alpha.scalarMult(1/new_scale);
-
+            normlizer[t] = new_scale;
+            current_alpha = current_alpha.scalarMult(1.0/new_scale);
             alpha = alpha.appendCol(current_alpha);
         }
 
         return alpha;
+    }
+
+    public static Matrix AlphaPass2(Matrix A, Matrix B, Matrix pi, int[] sequence) {
+        int T = sequence.length;
+        int N = A.rows;
+        normlizer = new double[T];
+        Matrix alpha = new Matrix(N, T);
+
+        // alpha_1
+        for (int i = 0; i <= N-1; i++) {
+            alpha.set(i, 0, pi.get(0, i)*B.get(i, sequence[0]));
+            normlizer[0] += alpha.get(i, 0);
+        }
+
+        for (int i = 0; i < N; i++) {
+            alpha.set(i, 0, alpha.get(i, 0)*(1.0/normlizer[0]));
+        }
+
+        for (int t = 1; t <= T-1; t++) {
+            normlizer[t] = 0;
+            for (int i = 0; i <= N-1; i++) {
+                alpha.set(i, t, 0);
+                for (int j = 0; j <= N-1; j++) {
+                    alpha.set(i, t,
+                            alpha.get(i, t) + alpha.get(j, t-1)*A.get(j, i)
+                    );
+                }
+                alpha.set(i, t, alpha.get(i, t)*B.get(i, sequence[t]));
+                normlizer[t] += alpha.get(i, t);
+            }
+            for (int i = 0; i <= N-1; i++) {
+                alpha.set(i, t, alpha.get(i, t)*(1.0/normlizer[t]));
+            }
+        }
+
+        return alpha;
+
     }
 
     public static Matrix BetaPass(Matrix A, Matrix B, int[] sequence) {
@@ -74,7 +110,7 @@ public class Main {
         double[] ones = new double[N];
         Arrays.fill(ones, 1);
         Matrix current_beta = new Matrix(N, 1, ones);
-        current_beta = current_beta.scalarMult(1/normlizer.get(0,0));
+        current_beta = current_beta.scalarMult(1.0/normlizer[0]);
 
         beta = beta.appendCol(current_beta);
 
@@ -83,11 +119,39 @@ public class Main {
             current_beta = A.mult(right_side);
 
             //normalize
-            current_beta = current_beta.scalarMult(1/normlizer.get(0, t));
+            current_beta = current_beta.scalarMult(1.0/normlizer[t]);
 
             beta = beta.appendCol(current_beta);
         }
 
+        return beta;
+    }
+
+    public static Matrix BetaPass2(Matrix A, Matrix B, int[] sequence) {
+        int T = sequence.length;
+        int N = A.rows;
+
+        Matrix beta = new Matrix(N, T);
+
+        // beta_one
+        for (int i = 0; i <= N-1; i++) {
+            beta.set(i, T-1, 1.0/normlizer[0]);
+        }
+
+        // beta pass
+        for (int t = T-2; t >= 0; t--) {
+            for (int i = 0; i <= N-1; i++) {
+                beta.set(i, t, 0.0);
+                for (int j = 0; j <= N-1; j++) {
+                    beta.set(i, t,
+                        beta.get(i,t) + A.get(i,j)*B.get(j, sequence[t+1])*beta.get(j, t+1)
+                    );
+                }
+                beta.set(i, t,
+                        beta.get(i, t)*(1.0/normlizer[t])
+                );
+            }
+        }
         return beta;
     }
 
@@ -213,7 +277,7 @@ public class Main {
         int N = A.rows;
         int M = B.cols;
 
-        int maxIter = 100; // TODO ?
+        int maxIter = 50;
         int iters = 0;
         double oldLogProb;
         double logProb = -Double.MAX_VALUE;
@@ -222,9 +286,9 @@ public class Main {
         do {
             oldLogProb = logProb;
             //alpha
-            Matrix alpha = AlphaPass(A, B, pi, sequence);
+            Matrix alpha = AlphaPass2(A, B, pi, sequence);
             //beta
-            Matrix beta = BetaPass(A, B, sequence);
+            Matrix beta = BetaPass2(A, B, sequence);
             // Gamma
             Matrix[] di_gamma = new Matrix[T];
             for (int t = 0; t < T; t++) {
@@ -237,13 +301,13 @@ public class Main {
                 double denominator = 0;
                 for (int i = 0; i <= N-1; i++) {
                     for (int j = 0; j <= N-1; j++) {
-                        denominator += alpha.get(i,t)*A.get(i, j)*B.get(j,sequence[t+1])*beta.get(j,(T-t)-1);
+                        denominator += alpha.get(i,t)*A.get(i, j)*B.get(j,sequence[t+1])*beta.get(j,t+1);
                     }
                 }
                 for (int i = 0; i <= N-1; i++) {
                     gamma.set(i,t, 0.0);
                     for (int j = 0; j <= N-1; j++) {
-                        double nominator = alpha.get(i,t)*A.get(i, j)*B.get(j,sequence[t+1])*beta.get(j,(T-t)-1);
+                        double nominator = alpha.get(i,t)*A.get(i, j)*B.get(j,sequence[t+1])*beta.get(j,t+1);
                         di_gamma[t].set(i, j, nominator/denominator);
                         double temp = gamma.get(i, t) + di_gamma[t].get(i,j);
                         gamma.set(i, t, temp);
@@ -297,26 +361,25 @@ public class Main {
             // Compute log probability
             logProb = 0;
             for (int t = 0; t <= T-1; t++) {
-                logProb += Math.log(1/normlizer.get(0, t));
+                logProb += Math.log(1.0/normlizer[t]);
             }
             logProb *= -1;
             iters++;
 
-        } while (iters < maxIter && logProb > oldLogProb);
+        } while (iters < maxIter && logProb > oldLogProb); //&& Math.abs(logProb - oldLogProb) > 0.001);
 
         StringBuilder ss = new StringBuilder();
         ss.append(A.rows).append(" ").append(A.cols).append(" ");
         for(int i = 0; i < A.cols*A.rows; i++){
-            ss.append(A.mat[i]).append(" ");
+            ss.append(String.format("%.5f", A.mat[i])).append(" ");
         }
         ss.append("\n");
 
         ss.append(B.rows).append(" ").append(B.cols).append(" ");
         for(int i = 0; i < B.cols*B.rows; i++){
-            ss.append(B.mat[i]).append(" ");
+            ss.append(String.format("%.5f", B.mat[i])).append(" ");
         }
         System.out.println(ss.toString().trim());
-
     }
 
     public static void main(String[] args) {
