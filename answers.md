@@ -37,7 +37,14 @@ This is ok because of the general product rule (chain rule) is used.
 The product rule says that:
 
 
-P(A<sub>n</sub>,...,A<sub>1</sub>) = P(A<sub>n</sub>|A<sub>n-1</sub>,...,A<sub>1</sub>) * P(A<sub>n-1</sub>,...,A<sub>1</sub>)
+P(A<sub>1:n</sub>) = P(A<sub>n</sub>|A<sub>1:n-1</sub>) * P(A<sub>1:n-1</sub>)
 
-In this case A<sub>n</sub> = P(O<sub>t</sub> = 0<sub>t</sub>)
-and A<sub>n-1</sub>,...,A<sub>1</sub> = O<sub>1</sub>,...,O<sub>t-1</sub>,(X<sub>t</sub>=x<sub>i</sub>)
+In this case A<sub>n</sub> = O<sub>t</sub> = o<sub>t</sub>
+
+and A<sub>1:n-1</sub> = X<sub>t</sub>=x<sub>i</sub>,O<sub>1:t-1</sub>
+
+## Question 5
+
+In our implementation we overwrite the delta matrix for each T iteration, therefore the delta matrix will always be a Nx1 matrix.
+
+The delta_index matrix, however, will be a NxT matrix.
