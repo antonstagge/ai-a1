@@ -1,4 +1,5 @@
 import java.util.Arrays;
+import java.util.Random;
 
 public class Main {
 
@@ -382,10 +383,160 @@ public class Main {
         System.out.println(ss.toString().trim());
     }
 
+    public static double[] initMatrix(int N, int M) {
+        double[] matrix = new double[N*M];
+        Random random = new Random(1337);
+        for(int row = 0; row < N; row++){
+            double rowSum = 0.0;
+            for(int column = 0; column < M; column++){
+                if(column == M-1){
+                    //Last in row
+                    double newValue = 1 - rowSum;
+                    matrix[row*M + column] = newValue;
+                } else {
+                    double temp = (random.nextDouble()-0.5)/100;
+                    double newValue = 1.0/M + temp;
+                    rowSum += newValue;
+                    matrix[row*M + column] = newValue;
+                }
+            }
+        }
+        return matrix;
+    }
+
+    public static void HHMC() {
+        Kattio io = new Kattio(System.in, System.out);
+
+        // Initialization
+        Matrix A = readMatix(io);
+        Matrix B = readMatix(io);
+        Matrix pi = readMatix(io);
+        int[] originalSequence = readRow(io);
+        int numberOfObservations = 7000;
+        System.out.println("Number of observations: " + numberOfObservations);
+        int[] sequence = Arrays.copyOfRange(originalSequence, 0, numberOfObservations);
+
+        int newN = 3;
+        int newM = 4;
+        double[] newA = initMatrix(newN,newN);
+        A = new Matrix(newN,newN, newA);
+        System.out.println("New A: \n" + A);
+
+        double[] newB = initMatrix(newN, newM);
+        B = new Matrix(newN,newM, newB);
+        System.out.println("New B: \n" + B);
+
+        double[] newPi = initMatrix(1, newN);
+        pi = new Matrix(1,newN, newPi);
+        System.out.println("New Pi: \n" + pi);
+
+        int T = sequence.length;
+        int N = A.rows;
+        int M = B.cols;
+
+        int maxIter = 10000;
+        int iters = 0;
+        double oldLogProb;
+        double logProb = -Double.MAX_VALUE;
+
+        // outer convergence loop
+        do {
+            oldLogProb = logProb;
+            //alpha
+            Matrix alpha = AlphaPass2(A, B, pi, sequence);
+            //beta
+            Matrix beta = BetaPass2(A, B, sequence);
+            // Gamma
+            Matrix[] di_gamma = new Matrix[T];
+            for (int t = 0; t < T; t++) {
+                di_gamma[t] = new Matrix(N, N);
+            }
+
+            Matrix gamma = new Matrix(N, T);
+
+            for (int t = 0; t <= T-2; t++) {
+                double denominator = 0;
+                for (int i = 0; i <= N-1; i++) {
+                    for (int j = 0; j <= N-1; j++) {
+                        denominator += alpha.get(i,t)*A.get(i, j)*B.get(j,sequence[t+1])*beta.get(j,t+1);
+                    }
+                }
+                for (int i = 0; i <= N-1; i++) {
+                    gamma.set(i,t, 0.0);
+                    for (int j = 0; j <= N-1; j++) {
+                        double nominator = alpha.get(i,t)*A.get(i, j)*B.get(j,sequence[t+1])*beta.get(j,t+1);
+                        di_gamma[t].set(i, j, nominator/denominator);
+                        double temp = gamma.get(i, t) + di_gamma[t].get(i,j);
+                        gamma.set(i, t, temp);
+                    }
+                }
+            }
+
+            // for t = T-1
+            double denominator = 0;
+            for (int i = 0; i <= N-1; i++) {
+                denominator += alpha.get(i, T-1);
+            }
+            for (int i = 0; i <= N-1; i++) {
+                gamma.set(i, T-1, alpha.get(i, T-1)/denominator);
+            }
+
+            // NEW ESTIMATES:
+            // re-estimate pi
+            for (int i = 0; i <= N-1; i++) {
+                pi.set(0, i, gamma.get(i, 0));
+            }
+
+            // re-estimate A
+            for (int i = 0; i <= N-1; i++) {
+                for (int j = 0; j <= N-1; j++) {
+                    double nominator = 0.0;
+                    denominator = 0.0;
+                    for (int t = 0; t <= T-2; t++) {
+                        nominator += di_gamma[t].get(i,j);
+                        denominator += gamma.get(i,t);
+                    }
+                    A.set(i,j,nominator/denominator);
+                }
+            }
+
+            // re-restimate B
+            for (int i = 0; i <= N-1; i++) {
+                for (int j = 0; j <= M-1; j++) {
+                    denominator = 0.0;
+                    double nominator = 0.0;
+                    for (int t = 0; t <= T-1; t++) {
+                        if (sequence[t] == j) {
+                            nominator += gamma.get(i,t);
+                        }
+                        denominator += gamma.get(i,t);
+                    }
+                    B.set(i, j, nominator/denominator);
+                }
+            }
+
+            // Compute log probability
+            logProb = 0;
+            for (int t = 0; t <= T-1; t++) {
+                logProb += Math.log(1.0/normlizer[t]);
+            }
+            logProb *= -1;
+            //System.out.println("LogProb: " + logProb);
+            iters++;
+
+        } while (iters < maxIter && logProb > oldLogProb);
+        
+        System.out.println("A:\n" + A);
+        System.out.println("B:\n" + B);
+        System.out.println("pi:\n" + pi);
+        System.out.println("Iterations: " + iters);
+    }
+
     public static void main(String[] args) {
         //HMM0();
         //HMM1();
         //HMM2();
-        HMM3();
+        //HMM3();
+        HHMC();
     }
 }
