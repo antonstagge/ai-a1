@@ -48,3 +48,20 @@ and A<sub>1:n-1</sub> = X<sub>t</sub>=x<sub>i</sub>,O<sub>1:t-1</sub>
 In our implementation we overwrite the delta matrix for each T iteration, therefore the delta matrix will always be a Nx1 matrix.
 
 The delta_index matrix, however, will be a NxT matrix.
+
+## Question 6
+
+This is because we use the product rule but backwards:
+
+P(A|B) = P(A,B) / P(B)
+
+In our case:
+
+A = X<sub>t</sub>=x<sub>i</sub>, X<sub>t+1</sub>=x<sub>j</sub>
+
+and
+
+B = O<sub>1:T</sub> = o<sub>1:T</sub>
+
+which is exactly what we get when summing the last alpha vector.
+The probability of observing the sequence given the model. 
