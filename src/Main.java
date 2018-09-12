@@ -187,6 +187,7 @@ public class Main {
         int T = sequence.length;
         int N = A.rows;
 
+        /*
         // alpha_1
         Matrix alpha = B.getCol(sequence[0]).hadamardProd(pi.transpose());
 
@@ -205,17 +206,19 @@ public class Main {
         }
 
         System.out.println(sum);
+        */
+        Matrix alpha = AlphaPass2(A, B, pi , sequence);
+        double LogSum = 0.0;
+        for (int t = 0; t <= sequence.length-1; t++) {
+            LogSum += Math.log(1.0/normlizer[t]);
+        }
+        LogSum *= -1;
+        System.out.println(Math.exp(LogSum));
 
         io.close();
     }
 
-    public static void HMM2() {
-        Kattio io = new Kattio(System.in, System.out);
-
-        Matrix A = readMatix(io);
-        Matrix B = readMatix(io);
-        Matrix pi = readMatix(io);
-        int[] sequence = readRow(io);
+    public static double[] Viterbi(Matrix A, Matrix B, Matrix pi, int[] sequence) {
         int T = sequence.length;
         int N = A.rows;
 
@@ -259,7 +262,20 @@ public class Main {
             path[t] = delta_idx.get(prev, t);
         }
 
-        for (int i = 0; i < T; i++) {
+        return path;
+    }
+
+    public static void HMM2() {
+        Kattio io = new Kattio(System.in, System.out);
+
+        Matrix A = readMatix(io);
+        Matrix B = readMatix(io);
+        Matrix pi = readMatix(io);
+        int[] sequence = readRow(io);
+
+        double[] path = Viterbi(A, B, pi, sequence);
+
+        for (int i = 0; i < path.length; i++) {
             System.out.print((int)path[i] + " ");
         }
         System.out.println();
@@ -411,30 +427,34 @@ public class Main {
         Matrix A = readMatix(io);
         Matrix B = readMatix(io);
         Matrix pi = readMatix(io);
+
+        Matrix originalA = new Matrix(3, 3, new double[]{0.7, 0.05, 0.25, 0.1, 0.8, 0.1, 0.2, 0.3, 0.5});
+        Matrix originalB = new Matrix(3, 4, new double[]{0.7, 0.2, 0.1, 0, 0.1, 0.4, 0.3, 0.2, 0, 0.1, 0.2, 0.7});
+        Matrix originalPi = new Matrix(1, 3, new double[]{1,0,0});
+
         int[] originalSequence = readRow(io);
-        int numberOfObservations = 7000;
+        int numberOfObservations = 10000;
         System.out.println("Number of observations: " + numberOfObservations);
         int[] sequence = Arrays.copyOfRange(originalSequence, 0, numberOfObservations);
 
-        int newN = 3;
+        int[] testSequence = readRow(io);
+
+        int newN = 5;
         int newM = 4;
         double[] newA = initMatrix(newN,newN);
         A = new Matrix(newN,newN, newA);
-        System.out.println("New A: \n" + A);
 
         double[] newB = initMatrix(newN, newM);
         B = new Matrix(newN,newM, newB);
-        System.out.println("New B: \n" + B);
 
         double[] newPi = initMatrix(1, newN);
         pi = new Matrix(1,newN, newPi);
-        System.out.println("New Pi: \n" + pi);
 
         int T = sequence.length;
         int N = A.rows;
         int M = B.cols;
 
-        int maxIter = 10000;
+        int maxIter = 20000;
         int iters = 0;
         double oldLogProb;
         double logProb = -Double.MAX_VALUE;
@@ -525,11 +545,32 @@ public class Main {
             iters++;
 
         } while (iters < maxIter && logProb > oldLogProb);
-        
-        System.out.println("A:\n" + A);
-        System.out.println("B:\n" + B);
-        System.out.println("pi:\n" + pi);
+
         System.out.println("Iterations: " + iters);
+
+        /*
+        System.out.println("diff A : " + A.diff(originalA));
+        System.out.println("diff B : " + B.diff(originalB));
+        System.out.println("diff po: " + pi.diff(originalPi));
+        */
+
+        Matrix alphaOrg = AlphaPass2(originalA, originalB, originalPi, testSequence);
+        double orgLogSum = 0.0;
+        for (int t = 0; t <= testSequence.length-1; t++) {
+            orgLogSum += Math.log(1.0/normlizer[t]);
+        }
+        orgLogSum *= -1;
+
+        Matrix alpha  = AlphaPass2(A, B, pi, testSequence);
+        double LogSum = 0.0;
+        for (int t = 0; t <= testSequence.length-1; t++) {
+            LogSum += Math.log(1.0/normlizer[t]);
+        }
+        LogSum *= -1;
+
+        System.out.println("sum : " + LogSum);
+        System.out.println("orgSum: " + orgLogSum);
+
     }
 
     public static void main(String[] args) {

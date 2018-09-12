@@ -93,11 +93,52 @@ Pi =
 | 0.0 | 1.0 | 0.0 |
 
 which pretty close for the A and B matrices but pi is totally off.
+If using the absoulte difference between each element in the matrices you get:
+diff A : 0.6077394011548561
+diff B : 0.5159043660292578
+diff pi: 2.0
 
+However, it is not fair to measure the differnce between the matrices one by one, since they all make up the model together. One could say that A is dependent of B and vice versa. Also, the states in the matrices are only represented by indices. By this we mean that row 0 for the original matrix could have been represented by row 1 in our model.
 
+We thought of another way of maesuring the model fitness: to compute the Viterbi algorithm for the two models.
+Meaning to compute the most likely sequence of *states* given the sequence of observations for each model. We can them count at how many time-steps these two paths differ to get a measurement of fitness.
+However, this will not work for the same reason as above. The numbers the states are given in the algorithm might not match eachother.   
+
+Another way to measure fitness is just to use the likelihood of the model. Meaning the sum of the last alpha-pass vector. However, this is a measurement of how good the model fit the training data. To solve this one could use one set of data to train on and one set of data to test on.
+
+When training our model on the 10000 observation sequence and using max iterations 20000 it converges after 14117 iterations. By testing both this model and the original model on the given sequence that is 1000 oservations, we get the two log probabilities:
+New model Log prob : -1347.7165739029786
+Original model Log prob : -1342.9301011102039
+
+Which means that our new model is almost as good as the original since higher log probability is better.
+ex: e<sup>-2</sup> > e<sup>-10</sup>
 ## Question 9
+With maxiterations set to 20000 and training on the 10000 long sequence and testing on the 1000 long sequence:
+
+Original model Log prob : -1342.930
+
+| # states | Log Prob |
+|-----|-----|
+| 1 | -1388.751 |
+| 2 | -1352.494 |
+| 3 | -1347.717 |
+| 4 | -1641.464 (did not converge) |
+| 5 | -1664.802 (did not converge) |
 
 
+This experiment shows that having 3 hidden states is the optimal in this case, which is just as
+many as there are in the original model. This might not be the case always. If the structure
+of the original model is that one column of the A matrix is all 0s (or very close to 0), it means
+that it's very unlikely you'll ever transition into that state. In this case a model with only
+2 hidden states might more accurately represent the original model.
+
+To determine the optimal number of hidden states one could do use the same approach as we did above:
+Train all the models on one set of data and then test them on another and see which one
+has the best performance.
+If you don't have much data you might want to consider an approach like k-fold cross-validation.
+This is where you divide the data into groups, or folds, and train on all folds except one which you use for testing. You then repeat this but change which fold you leave out.
+
+## Question 10
 
 
 

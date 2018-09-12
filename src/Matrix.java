@@ -146,4 +146,15 @@ public class Matrix {
         }
         return  ss.toString();
     }
+
+    public double diff(Matrix other) {
+        if (this.cols != other.cols || this.rows != other.rows) {
+            throw new IndexOutOfBoundsException("matrix size no match in diff");
+        }
+        double sum = 0.0;
+        for (int i = 0; i < this.rows*this.cols; i++) {
+            sum += Math.sqrt(Math.pow(this.mat[i]-other.mat[i], 2));
+        }
+        return sum;
+    }
 }
