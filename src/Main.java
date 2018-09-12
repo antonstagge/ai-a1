@@ -335,6 +335,27 @@ public class Main {
         return new Matrix(N, M, matrix);
     }
 
+    public static Matrix almostRandomizeMatrix(Matrix old) {
+        Random random = new Random(1337);
+        for(int row = 0; row < old.rows; row++){
+            double rowSum = 0.0;
+            for(int column = 0; column < old.cols; column++){
+                if(column == old.cols-1){
+                    //Last in row
+                    double newValue = 1 - rowSum;
+                    old.mat[row*old.cols + column] = newValue;
+                } else {
+                    double temp = (random.nextDouble()-0.5)/100;
+                    double newValue = old.get(row, column) + temp;
+                    rowSum += newValue;
+                    old.mat[row*old.cols + column] = newValue;
+                }
+            }
+        }
+
+        return old;
+    }
+
     public static void HHMC() {
         Kattio io = new Kattio(System.in, System.out);
 
@@ -364,11 +385,24 @@ public class Main {
         if (true) {
             int newN = 3;
             int newM = 4;
-            A = almostUniformMatrix(newN,newN);
+            //A = almostUniformMatrix(newN,newN);
+            //Q10
+            //A = new Matrix(3, 3, new double[]{1,0,0,0,1,0,0,0,1});
+            System.out.println(originalA);
+            A = almostRandomizeMatrix(originalA);
+            System.out.println(A);
 
-            B = almostUniformMatrix(newN, newM);
+            //B = almostUniformMatrix(newN, newM);
+            System.out.println(originalB);
+            B = almostRandomizeMatrix(originalB);
+            System.out.println(B);
 
-            pi = almostUniformMatrix(1, newN);
+            //pi = almostUniformMatrix(1, newN);
+            //Q10
+            //pi = new Matrix(1, 3, new double[]{0,0,1});
+            System.out.println(originalPi);
+            pi = almostRandomizeMatrix(originalPi);
+            System.out.println(pi);
         }
 
         int T = sequence.length;

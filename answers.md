@@ -140,6 +140,13 @@ This is where you divide the data into groups, or folds, and train on all folds 
 
 ## Question 10
 
+Initializing our model with a uniform distribution caused the learning algorithm to converge after only 3 iterations, which means that the algorithm got stuck in a local maximum.
+
+Initializing our model with a diagonal A matrix and pi = [0,0,1] causes our algorithm to divide by 0 when calculating the normalization (scaling) values. This causes several value to be NaN.
+
+Initializing our model with a model close to the solution causes the algorithm to converge after only 44 iterations.
+The new model also gave a test result of -1347.5349328758998 which is slightly better than the model generated from almost uniform distributions. 
+
 
 
 
