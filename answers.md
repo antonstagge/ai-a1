@@ -57,45 +57,54 @@ P(A|B) = P(A,B) / P(B)
 
 In our case:
 
-A = X<sub>t</sub>=x<sub>i</sub>, X<sub>t+1</sub>=x<sub>j</sub>
+A is X<sub>t</sub>=x<sub>i</sub>, X<sub>t+1</sub>=x<sub>j</sub>
 
 and
 
-B = O<sub>1:T</sub> = o<sub>1:T</sub>
+B is O<sub>1:T</sub> = o<sub>1:T</sub>
 
-which is exactly what we get when summing the last alpha vector.
+and
+
+A,B (A and B) is
+α<sub>t</sub>(i)a<sub>i,j</sub> b<sub>j</sub>(O<sub>t+1</sub>)β<sub>t+1</sub>(j)
+
+P(B) = P(O<sub>1:T</sub> = o<sub>1:T</sub>) is exactly what we get when summing the last alpha vector.
 The probability of observing the sequence given the model.
+
 
 # HMM C
 ## Question 7
-The algorithm converges on 1000 observations, but not on 10000 as it doesn't stop within reasonable time (max iteration 10000).
+The algorithm converges on 1000 observations, but not on 10000 as it doesn't stop within reasonable time (max iteration 10000). The amount of iterations needed for the 10000 long observation sequence was 14117.
 
 Convergence can be defined as: The algorithm stops in a maximum. This, however, does not *have* to be a global maximum, it can be a local. You have to decide what level of convergence you want, and you can do this by changing the number of max iterations for the baum-welch algorithm.
 
 ## Question 8
 
-When using 7000 observations we got:
+When using 10000 observations we got:
 
 A =
 
-| 0.713 | 0.025 | 0.263 |
-| 0.131 | 0.684 | 0.185 |
-| 0.116 | 0.222 | 0.662 |
+| 0.694 | 0.045 | 0.261 |
+|---|
+| 0.118 | 0.746 | 0.136 |
+| 0.154 | 0.257 | 0.589 |
 
 B =
 
-| 0.701 | 0.187 | 0.096 | 0.017 |
-| 0.102 | 0.465 | 0.310 | 0.123 |
-| 0.057 | 0.197 | 0.209 | 0.537 |
+| 0.701 | 0.186 | 0.104 | 0.0 |
+|---|
+| 0.099 | 0.421 | 0.312 | 0.168 |
+| 0.032 | 0.171 | 0.187 | 0.610 |
 
 Pi =
 
 | 0.0 | 1.0 | 0.0 |
+|---|
 
 which pretty close for the A and B matrices but pi is totally off.
 If using the absoulte difference between each element in the matrices you get:
-diff A : 0.6077394011548561
-diff B : 0.5159043660292578
+diff A : 0.30772694822209923
+diff B : 0.30065770885904775
 diff pi: 2.0
 
 However, it is not fair to measure the differnce between the matrices one by one, since they all make up the model together. One could say that A is dependent of B and vice versa. Also, the states in the matrices are only represented by indices. By this we mean that row 0 for the original matrix could have been represented by row 1 in our model.
@@ -145,7 +154,7 @@ Initializing our model with a uniform distribution caused the learning algorithm
 Initializing our model with a diagonal A matrix and pi = [0,0,1] causes our algorithm to divide by 0 when calculating the normalization (scaling) values. This causes several value to be NaN.
 
 Initializing our model with a model close to the solution causes the algorithm to converge after only 44 iterations.
-The new model also gave a test result of -1347.5349328758998 which is slightly better than the model generated from almost uniform distributions. 
+The new model also gave a test result of -1347.5349328758998 which is slightly better than the model generated from almost uniform distributions.
 
 
 

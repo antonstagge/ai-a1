@@ -382,7 +382,7 @@ public class Main {
 
         // Init the matrix to be trained with your own values
         // that are almost uniform = 1/N
-        if (true) {
+        if (false) {
             int newN = 3;
             int newM = 4;
             //A = almostUniformMatrix(newN,newN);
@@ -503,11 +503,16 @@ public class Main {
 
         System.out.println("Iterations: " + iters);
 
-        /*
+        System.out.println("A");
+        System.out.println(A);
+        System.out.println("B");
+        System.out.println(B);
+        System.out.println("pi");
+        System.out.println(pi);
         System.out.println("diff A : " + A.diff(originalA));
         System.out.println("diff B : " + B.diff(originalB));
         System.out.println("diff po: " + pi.diff(originalPi));
-        */
+
 
         Matrix alphaOrg = AlphaPass(originalA, originalB, originalPi, testSequence);
         double orgLogSum = 0.0;
