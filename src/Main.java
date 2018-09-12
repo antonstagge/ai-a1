@@ -26,45 +26,8 @@ public class Main {
         return seq;
     }
 
+
     public static Matrix AlphaPass(Matrix A, Matrix B, Matrix pi, int[] sequence) {
-
-        int T = sequence.length;
-        int N = A.rows;
-        normlizer = new double[T];
-        Matrix alpha = new Matrix(N, 0);
-
-        // alpha_1
-        Matrix current_alpha = B.getCol(sequence[0]).hadamardProd(pi.transpose());
-        double new_scale = 0;
-        for (int i = 0; i < N; i++) {
-            new_scale += current_alpha.get(i, 0);
-        }
-        normlizer[0] = new_scale;
-        current_alpha = current_alpha.scalarMult(1.0/new_scale);
-
-        alpha = alpha.appendCol(current_alpha);
-
-
-        // alpha_t
-        for (int t = 1; t < T; t++) {
-            Matrix tmp1 = (current_alpha.transpose().mult(A)).transpose();
-            Matrix bcol = B.getCol(sequence[t]);
-            Matrix tmp2 = tmp1.hadamardProd(bcol);
-            current_alpha = tmp2;
-
-            new_scale = 0;
-            for (int i = 0; i < N; i++) {
-                new_scale += current_alpha.get(i, 0);
-            }
-            normlizer[t] = new_scale;
-            current_alpha = current_alpha.scalarMult(1.0/new_scale);
-            alpha = alpha.appendCol(current_alpha);
-        }
-
-        return alpha;
-    }
-
-    public static Matrix AlphaPass2(Matrix A, Matrix B, Matrix pi, int[] sequence) {
         int T = sequence.length;
         int N = A.rows;
         normlizer = new double[T];
@@ -101,34 +64,8 @@ public class Main {
 
     }
 
+
     public static Matrix BetaPass(Matrix A, Matrix B, int[] sequence) {
-
-        int T = sequence.length;
-        int N = A.rows;
-        Matrix beta = new Matrix(N, 0);
-
-        // beta_1
-        double[] ones = new double[N];
-        Arrays.fill(ones, 1);
-        Matrix current_beta = new Matrix(N, 1, ones);
-        current_beta = current_beta.scalarMult(1.0/normlizer[0]);
-
-        beta = beta.appendCol(current_beta);
-
-        for (int t = T-2; t > -1; t--) {
-            Matrix right_side = current_beta.hadamardProd(B.getCol(sequence[t+1]));
-            current_beta = A.mult(right_side);
-
-            //normalize
-            current_beta = current_beta.scalarMult(1.0/normlizer[t]);
-
-            beta = beta.appendCol(current_beta);
-        }
-
-        return beta;
-    }
-
-    public static Matrix BetaPass2(Matrix A, Matrix B, int[] sequence) {
         int T = sequence.length;
         int N = A.rows;
 
@@ -184,30 +121,7 @@ public class Main {
         Matrix pi = readMatix(io);
         int[] sequence = readRow(io);
 
-        int T = sequence.length;
-        int N = A.rows;
-
-        /*
-        // alpha_1
-        Matrix alpha = B.getCol(sequence[0]).hadamardProd(pi.transpose());
-
-        // alpha_t
-        for (int t = 1; t < T; t++) {
-            Matrix tmp1 = (alpha.transpose().mult(A)).transpose();
-            Matrix bcol = B.getCol(sequence[t]);
-            Matrix tmp2 = tmp1.hadamardProd(bcol);
-            alpha = tmp2;
-        }
-
-        // last step
-        double sum = 0.0;
-        for (int i = 0; i < alpha.rows; i++) {
-            sum += alpha.get(i,0);
-        }
-
-        System.out.println(sum);
-        */
-        Matrix alpha = AlphaPass2(A, B, pi , sequence);
+        Matrix alpha = AlphaPass(A, B, pi , sequence);
         double LogSum = 0.0;
         for (int t = 0; t <= sequence.length-1; t++) {
             LogSum += Math.log(1.0/normlizer[t]);
@@ -303,9 +217,9 @@ public class Main {
         do {
             oldLogProb = logProb;
             //alpha
-            Matrix alpha = AlphaPass2(A, B, pi, sequence);
+            Matrix alpha = AlphaPass(A, B, pi, sequence);
             //beta
-            Matrix beta = BetaPass2(A, B, sequence);
+            Matrix beta = BetaPass(A, B, sequence);
             // Gamma
             Matrix[] di_gamma = new Matrix[T];
             for (int t = 0; t < T; t++) {
@@ -332,7 +246,7 @@ public class Main {
                 }
             }
 
-            // for t = T-1
+            // special case for t = T-1
             double denominator = 0;
             for (int i = 0; i <= N-1; i++) {
                 denominator += alpha.get(i, T-1);
@@ -383,8 +297,9 @@ public class Main {
             logProb *= -1;
             iters++;
 
-        } while (iters < maxIter && logProb > oldLogProb); //&& Math.abs(logProb - oldLogProb) > 0.001);
+        } while (iters < maxIter && logProb > oldLogProb);
 
+        // print
         StringBuilder ss = new StringBuilder();
         ss.append(A.rows).append(" ").append(A.cols).append(" ");
         for(int i = 0; i < A.cols*A.rows; i++){
@@ -399,7 +314,7 @@ public class Main {
         System.out.println(ss.toString().trim());
     }
 
-    public static double[] initMatrix(int N, int M) {
+    public static Matrix almostUniformMatrix(int N, int M) {
         double[] matrix = new double[N*M];
         Random random = new Random(1337);
         for(int row = 0; row < N; row++){
@@ -417,38 +332,44 @@ public class Main {
                 }
             }
         }
-        return matrix;
+        return new Matrix(N, M, matrix);
     }
 
     public static void HHMC() {
         Kattio io = new Kattio(System.in, System.out);
 
-        // Initialization
+        // Initialization read the matrix from the file
         Matrix A = readMatix(io);
         Matrix B = readMatix(io);
         Matrix pi = readMatix(io);
 
+        // Init the original matrix for testing
         Matrix originalA = new Matrix(3, 3, new double[]{0.7, 0.05, 0.25, 0.1, 0.8, 0.1, 0.2, 0.3, 0.5});
         Matrix originalB = new Matrix(3, 4, new double[]{0.7, 0.2, 0.1, 0, 0.1, 0.4, 0.3, 0.2, 0, 0.1, 0.2, 0.7});
         Matrix originalPi = new Matrix(1, 3, new double[]{1,0,0});
 
+        // Limit the amount of observations to use for training
         int[] originalSequence = readRow(io);
         int numberOfObservations = 10000;
-        System.out.println("Number of observations: " + numberOfObservations);
         int[] sequence = Arrays.copyOfRange(originalSequence, 0, numberOfObservations);
 
-        int[] testSequence = readRow(io);
+        // read in the 1000 obs. sequence
+        int[] testSequence = new int[0];
+        if (io.hasMoreTokens()) {
+            testSequence = readRow(io);
+        }
 
-        int newN = 5;
-        int newM = 4;
-        double[] newA = initMatrix(newN,newN);
-        A = new Matrix(newN,newN, newA);
+        // Init the matrix to be trained with your own values
+        // that are almost uniform = 1/N
+        if (true) {
+            int newN = 3;
+            int newM = 4;
+            A = almostUniformMatrix(newN,newN);
 
-        double[] newB = initMatrix(newN, newM);
-        B = new Matrix(newN,newM, newB);
+            B = almostUniformMatrix(newN, newM);
 
-        double[] newPi = initMatrix(1, newN);
-        pi = new Matrix(1,newN, newPi);
+            pi = almostUniformMatrix(1, newN);
+        }
 
         int T = sequence.length;
         int N = A.rows;
@@ -459,13 +380,14 @@ public class Main {
         double oldLogProb;
         double logProb = -Double.MAX_VALUE;
 
+        // Begin Baum-Welch
         // outer convergence loop
         do {
             oldLogProb = logProb;
             //alpha
-            Matrix alpha = AlphaPass2(A, B, pi, sequence);
+            Matrix alpha = AlphaPass(A, B, pi, sequence);
             //beta
-            Matrix beta = BetaPass2(A, B, sequence);
+            Matrix beta = BetaPass(A, B, sequence);
             // Gamma
             Matrix[] di_gamma = new Matrix[T];
             for (int t = 0; t < T; t++) {
@@ -492,7 +414,7 @@ public class Main {
                 }
             }
 
-            // for t = T-1
+            // special gamma for t = T-1
             double denominator = 0;
             for (int i = 0; i <= N-1; i++) {
                 denominator += alpha.get(i, T-1);
@@ -520,7 +442,7 @@ public class Main {
                 }
             }
 
-            // re-restimate B
+            // re-estimate B
             for (int i = 0; i <= N-1; i++) {
                 for (int j = 0; j <= M-1; j++) {
                     denominator = 0.0;
@@ -541,7 +463,6 @@ public class Main {
                 logProb += Math.log(1.0/normlizer[t]);
             }
             logProb *= -1;
-            //System.out.println("LogProb: " + logProb);
             iters++;
 
         } while (iters < maxIter && logProb > oldLogProb);
@@ -554,14 +475,14 @@ public class Main {
         System.out.println("diff po: " + pi.diff(originalPi));
         */
 
-        Matrix alphaOrg = AlphaPass2(originalA, originalB, originalPi, testSequence);
+        Matrix alphaOrg = AlphaPass(originalA, originalB, originalPi, testSequence);
         double orgLogSum = 0.0;
         for (int t = 0; t <= testSequence.length-1; t++) {
             orgLogSum += Math.log(1.0/normlizer[t]);
         }
         orgLogSum *= -1;
 
-        Matrix alpha  = AlphaPass2(A, B, pi, testSequence);
+        Matrix alpha  = AlphaPass(A, B, pi, testSequence);
         double LogSum = 0.0;
         for (int t = 0; t <= testSequence.length-1; t++) {
             LogSum += Math.log(1.0/normlizer[t]);
