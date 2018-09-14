@@ -1,18 +1,31 @@
+import java.util.Arrays;
+
 /**
  * Created by anton on 2018-09-14.
  */
 public class HMM {
-    private Matrix A;
-    private Matrix B;
-    private Matrix pi;
+    public Matrix A;
+    public Matrix B;
+    public Matrix pi;
     private int[] sequence;
     private int N;
     private int M;
     private int T;
     private double[] normalizer;
 
+    int nr_alpha = 0;
+    int nr_train = 0;
+
     HMM() {
 
+    }
+
+    HMM(HMM copy) {
+        this.A = new Matrix(copy.A.rows, copy.A.cols, Arrays.copyOf(copy.A.mat, copy.A.mat.length));
+        this.B = new Matrix(copy.B.rows, copy.B.cols, Arrays.copyOf(copy.B.mat, copy.B.mat.length));
+        this.pi = new Matrix(copy.pi.rows, copy.pi.cols, Arrays.copyOf(copy.pi.mat, copy.pi.mat.length));
+        this.N = copy.N;
+        this.M = copy.M;
     }
 
     HMM(int N, int M) {
@@ -24,6 +37,7 @@ public class HMM {
     }
 
     private Matrix AlphaPass() {
+        nr_alpha++;
         normalizer = new double[T];
         Matrix alpha = new Matrix(N, T);
 
@@ -33,8 +47,10 @@ public class HMM {
             normalizer[0] += alpha.get(i, 0);
         }
 
+        normalizer[0] = 1.0/normalizer[0];
+
         for (int i = 0; i < N; i++) {
-            alpha.set(i, 0, alpha.get(i, 0)*(1.0/ normalizer[0]));
+            alpha.set(i, 0, alpha.get(i, 0)*(normalizer[0]));
         }
 
         for (int t = 1; t <= T-1; t++) {
@@ -49,13 +65,65 @@ public class HMM {
                 alpha.set(i, t, alpha.get(i, t)*B.get(i, sequence[t]));
                 normalizer[t] += alpha.get(i, t);
             }
+
+            normalizer[t] = 1.0/normalizer[t];
+
             for (int i = 0; i <= N-1; i++) {
-                alpha.set(i, t, alpha.get(i, t)*(1.0/ normalizer[t]));
+                alpha.set(i, t, alpha.get(i, t)*(normalizer[t]));
             }
         }
 
         return alpha;
     }
+
+    /*
+    public static double[] Viterbi(Matrix A, Matrix B, Matrix pi, int[] sequence) {
+        int T = sequence.length;
+        int N = A.rows;
+
+        // delta_1
+        double[] delta_temp = new double[A.rows];
+        for (int i = 0; i < A.rows; i++) {
+            delta_temp[i] = B.get(i, sequence[0])*pi.get(0,i);
+        }
+
+        Matrix delta = new Matrix(delta_temp.length,1, delta_temp);
+        Matrix delta_idx = new Matrix(N, 0);
+
+        // delta_t
+        for (int t = 1; t < T; t++) {
+            Matrix big = new Matrix(N,0);
+            for (int j = 0; j < N; j++) {
+                Matrix Bcol = B.getCol(sequence[t]);
+                Matrix Arowtrans = A.getRow(j).transpose();
+                Matrix tmp = Bcol.hadamardProd(Arowtrans);
+                Matrix tmp2 = tmp.scalarMult(delta.get(j,0));
+                big = big.appendCol(tmp2);
+            }
+            Matrix max_result = big.extractMax();
+            delta = max_result.getCol(0);
+            delta_idx = delta_idx.appendCol(max_result.getCol(1));
+        }
+
+        double max = 0;
+        int max_idx = 0;
+        for (int i = 0; i < N; i++) {
+            if (delta.get(i, 0) > max) {
+                max = delta.get(i,0);
+                max_idx = i;
+            }
+        }
+
+        double[] path = new double[T];
+        path[T-1] = max_idx;
+        for (int t = T-2; t >= 0; t--) {
+            int prev = (int) path[t+1];
+            path[t] = delta_idx.get(prev, t);
+        }
+
+        return path;
+    }
+    */
 
     private Matrix BetaPass() {
 
@@ -63,7 +131,7 @@ public class HMM {
 
         // beta_one
         for (int i = 0; i <= N-1; i++) {
-            beta.set(i, T-1, 1.0/ normalizer[0]);
+            beta.set(i, T-1, normalizer[0]);
         }
 
         // beta pass
@@ -76,7 +144,7 @@ public class HMM {
                     );
                 }
                 beta.set(i, t,
-                        beta.get(i, t)*(1.0/ normalizer[t])
+                        beta.get(i, t)*(normalizer[t])
                 );
             }
         }
@@ -84,7 +152,13 @@ public class HMM {
     }
 
 
+    public void updateSequence(int[] obsSeq) {
+        T = obsSeq.length;
+        this.sequence = obsSeq;
+    }
     public void trainHMM(int maxIter, int[] obsSequence) {
+        nr_train++;
+        nr_alpha = 0;
         T = obsSequence.length;
         this.sequence = obsSequence;
         int iters = 0;
@@ -130,12 +204,14 @@ public class HMM {
             for (int i = 0; i <= N-1; i++) {
                 denominator += alpha.get(i, T-1);
             }
+
             for (int i = 0; i <= N-1; i++) {
                 gamma.set(i, T-1, alpha.get(i, T-1)/denominator);
             }
 
             // NEW ESTIMATES:
             // re-estimate pi
+
             for (int i = 0; i <= N-1; i++) {
                 pi.set(0, i, gamma.get(i, 0));
             }
@@ -149,7 +225,15 @@ public class HMM {
                         nominator += di_gamma[t].get(i,j);
                         denominator += gamma.get(i,t);
                     }
-                    A.set(i,j,nominator/denominator);
+                    if (denominator == 0) {
+                        if (i == j) {
+                            A.set(i,j, 1.0);
+                        } else {
+                            A.set(i,j, 0.0);
+                        }
+                    } else {
+                        A.set(i,j,nominator/denominator);
+                    }
                 }
             }
 
@@ -164,14 +248,18 @@ public class HMM {
                         }
                         denominator += gamma.get(i,t);
                     }
-                    B.set(i, j, nominator/denominator);
+                    if (denominator == 0) {
+                        B.set(i, j, 1/M);
+                    } else {
+                        B.set(i, j, nominator/denominator);
+                    }
                 }
             }
 
             // Compute log probability
             logProb = 0;
             for (int t = 0; t <= T-1; t++) {
-                logProb += Math.log(1.0/ normalizer[t]);
+                logProb += Math.log(normalizer[t]);
             }
             logProb *= -1;
             iters++;
@@ -202,28 +290,20 @@ public class HMM {
             p_new += nextAlphaStep.get(i, 0);
         }
 
+        return p_new;
+    }
 
-        /*
-        // normalize
-        for (int i = 0; i <= N-1; i++) {
-            nextAlphaStep.set(i, 0, nextAlphaStep.get(i, 0)*(1.0/_normalizer));
-        }
-
-
+    public double speciesFitness(int[] sequence) {
+        this.sequence = sequence;
+        T = sequence.length;
+        Matrix alpha = AlphaPass();
 
         double logProb = 0;
         for (int t = 0; t <= T-1; t++) {
-            logProb += Math.log(1.0/ normalizer[t]);
+            logProb += Math.log(normalizer[t]);
         }
-        logProb += Math.log(1.0/_normalizer);
         logProb *= -1;
-        */
 
-        return p_new;
-
-        //System.err.println(p);
-
-
-        //return logProb;
+        return logProb;
     }
 }

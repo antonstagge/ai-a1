@@ -2,10 +2,14 @@
 class Player {
 
 
-    final int TRAIN = 20;
+    final int TRAIN = 70;
     final double SHOOTING_THRESHOLD = 0.8;
-    final int MAX_ITER = 4000;
-    final int NUMBER_OF_HIDDEN_STATES = 2;
+    final double GUESSING_THRESHOLD = 0.8;
+    final double STORK_THRESHOLD = -120;
+    final int MAX_ITER = 500;
+    final int NUMBER_OF_HIDDEN_STATES = 4;
+
+    HMM[] species;
 
     HMM[] hmms;
     int timeStep = 0;
@@ -13,6 +17,7 @@ class Player {
     int numberOfBirds = -1;
 
     public Player() {
+        species = new HMM[Constants.COUNT_SPECIES];
     }
 
     /**
@@ -61,7 +66,14 @@ class Player {
             Bird bird = pState.getBird(birdNumber);
             if (bird.isDead()) continue;
 
-            hmms[birdNumber].trainHMM(MAX_ITER, getBirdFlightPath(pState.getBird(birdNumber)));
+            if (timeStep == TRAIN) {
+                hmms[birdNumber].trainHMM(MAX_ITER, getBirdFlightPath(pState.getBird(birdNumber)));
+            } else {
+                hmms[birdNumber].updateSequence(getBirdFlightPath(pState.getBird(birdNumber)));
+            }
+
+            //System.err.println("ONE HMM TRAINED:\n A for birdnumber: " + birdNumber + " is:");
+            //System.err.println(hmms[birdNumber].A);
 
             double best_move_prob = -Double.MAX_VALUE;
             int best_move = -1;
@@ -94,9 +106,21 @@ class Player {
         }
 
         if (bestProbOfAllBirds > SHOOTING_THRESHOLD) {
-            Action shot = new Action(bestBird, bestMoveOfAllBirds);
-            System.err.println("Shooting " + shot.toString() + " with prob: " + bestProbOfAllBirds);
-            return shot;
+            double storkFitness = 0.0;
+            if (species[Constants.SPECIES_BLACK_STORK] != null) {
+                storkFitness = species[Constants.SPECIES_BLACK_STORK].speciesFitness(getBirdFlightPath(pState.getBird(bestBird)));
+
+            }
+
+            //System.err.println("STORK FITNESS: " + storkFitness);
+            if (storkFitness < STORK_THRESHOLD) {
+                Action shot = new Action(bestBird, bestMoveOfAllBirds);
+                System.err.println("Shooting " + shot.toString() + " with prob: " + bestProbOfAllBirds);
+                return shot;
+            } else {
+                //System.err.println("Stork danger!");
+            }
+
         }
 
 
@@ -124,9 +148,32 @@ class Player {
          * each bird. This skeleton makes no guesses, better safe than sorry!
          */
 
-        int[] lGuess = new int[pState.getNumBirds()];
-        for (int i = 0; i < pState.getNumBirds(); ++i)
-            lGuess[i] = Constants.SPECIES_UNKNOWN;
+        
+        if (round == 1) {
+            int[] lGuess = new int[numberOfBirds];
+            for (int i = 0; i < pState.getNumBirds(); ++i)
+                lGuess[i] = Constants.SPECIES_PIGEON;
+            return lGuess;
+        }
+
+        int[] lGuess = new int[numberOfBirds];
+        for (int i = 0; i < numberOfBirds; ++i) {
+            double maxFit = -Double.MAX_VALUE;
+            int maxFitIdx = 0;
+            for (int j = 0; j < Constants.COUNT_SPECIES; ++j) {
+                if (species[j] == null) continue;
+                int[] seq = getBirdFlightPath(pState.getBird(i));
+                int[] new_seq = trimBirdFlightPath(seq);
+                double fit = species[j].speciesFitness(new_seq);
+                if (fit > maxFit) {
+                    maxFit = fit;
+                    maxFitIdx = j;
+                }
+            }
+            lGuess[i] = maxFitIdx;
+
+        }
+
         return lGuess;
     }
 
@@ -151,6 +198,17 @@ class Player {
      * @param pDue time before which we must have returned
      */
     public void reveal(GameState pState, int[] pSpecies, Deadline pDue) {
+        for (int i = 0; i < pState.getNumBirds(); ++i) {
+            if (species[pSpecies[i]] == null)
+                if (pSpecies[i] == Constants.SPECIES_BLACK_STORK) {
+                    System.err.println("                STORK DETECTED");
+                }
+                species[pSpecies[i]] = new HMM(hmms[i]);
+
+            int[] seq = getBirdFlightPath(pState.getBird(i));
+            int[] new_seq = trimBirdFlightPath(seq);
+            species[pSpecies[i]].trainHMM(MAX_ITER, new_seq);
+        }
     }
 
     public static final Action cDontShoot = new Action(-1, -1);
@@ -161,5 +219,19 @@ class Player {
             seq[i] = b.getObservation(i);
         }
         return seq;
+    }
+
+    public int[] trimBirdFlightPath(int[] seq) {
+        int l = 0;
+        for (int k = 0; k < seq.length; ++k) {
+            if (seq[k] == -1)
+                break;
+            ++l;
+        }
+        int[] new_seq = new int[l];
+        for (int k = 0; k < l; ++k) {
+            new_seq[k] = seq[k];
+        }
+        return new_seq;
     }
 }

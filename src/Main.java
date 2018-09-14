@@ -44,19 +44,29 @@ public class Main {
         }
 
         for (int t = 1; t <= T-1; t++) {
+            if (t == 21) {
+                System.err.println("");
+            }
             normlizer[t] = 0;
             for (int i = 0; i <= N-1; i++) {
                 alpha.set(i, t, 0);
+                double first = 0.0;
                 for (int j = 0; j <= N-1; j++) {
+                    double second = alpha.get(j, t-1)* A.get(j,i);
                     alpha.set(i, t,
                             alpha.get(i, t) + alpha.get(j, t-1)*A.get(j, i)
                     );
+                    first += second;
                 }
+                double third = B.get(i, sequence[t]);
+                first *= third;
                 alpha.set(i, t, alpha.get(i, t)*B.get(i, sequence[t]));
                 normlizer[t] += alpha.get(i, t);
             }
-            for (int i = 0; i <= N-1; i++) {
-                alpha.set(i, t, alpha.get(i, t)*(1.0/normlizer[t]));
+            if (normlizer[t] != 0.0) {
+                for (int i = 0; i <= N - 1; i++) {
+                    alpha.set(i, t, alpha.get(i, t) * (1.0 / normlizer[t]));
+                }
             }
         }
 
@@ -270,7 +280,15 @@ public class Main {
                         nominator += di_gamma[t].get(i,j);
                         denominator += gamma.get(i,t);
                     }
-                    A.set(i,j,nominator/denominator);
+                    if (denominator == 0) {
+                        if (i == j) {
+                            A.set(i,j, 1.0);
+                        } else {
+                            A.set(i,j, 0.0);
+                        }
+                    } else {
+                        A.set(i,j,nominator/denominator);
+                    }
                 }
             }
 
@@ -285,7 +303,11 @@ public class Main {
                         }
                         denominator += gamma.get(i,t);
                     }
-                    B.set(i, j, nominator/denominator);
+                    if (denominator == 0) {
+                        B.set(i, j, 1/M);
+                    } else {
+                        B.set(i, j, nominator/denominator);
+                    }
                 }
             }
 
@@ -298,6 +320,7 @@ public class Main {
             iters++;
 
         } while (iters < maxIter && logProb > oldLogProb);
+
 
         // print
         StringBuilder ss = new StringBuilder();
@@ -537,7 +560,7 @@ public class Main {
         //HMM0();
         //HMM1();
         //HMM2();
-        //HMM3();
-        HHMC();
+        HMM3();
+        //HHMC();
     }
 }
